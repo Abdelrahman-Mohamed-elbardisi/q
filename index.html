@@ -3,169 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تفاسير القرآن الكريم</title>
+    <title>القرآن الكريم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            direction: rtl;
-            text-align: right;
+            font-family: 'Amiri', serif;
         }
-
-        header {
-            background-color: #4caf50;
-            color: white;
-            padding: 10px;
-            text-align: center;
-        }
-
-        main {
-            padding: 20px;
-        }
-
-        .section {
-            margin-bottom: 20px;
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-        }
-
-        .section h2 {
-            margin: 0 0 10px;
-            color: #333;
-        }
-
-        select, button {
-            padding: 10px;
-            margin: 5px 0;
-            font-size: 16px;
-        }
-
-        button {
-            background-color: #4caf50;
-            color: white;
-            border: none;
+        .ayah {
             cursor: pointer;
-            border-radius: 3px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .result {
-            margin-top: 10px;
-            background: #f9f9f9;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
         }
     </style>
 </head>
-<body>
-    <header>
-        <h1>تفاسير القرآن الكريم</h1>
-    </header>
-    <main>
-        <!-- Section: أسماء السور -->
-        <div class="section" id="sura-section">
-            <h2>أسماء السور</h2>
-            <select id="sura-select"></select>
+<body class="bg-gray-100 text-gray-900">
+    <div class="container mx-auto py-10">
+        <h1 class="text-4xl font-bold text-center mb-8">القرآن الكريم</h1>
+
+        <!-- قائمة السور -->
+        <select id="surah-select" class="block w-full p-2 border border-gray-300 rounded mb-6">
+            <option value="">اختر السورة</option>
+        </select>
+
+        <!-- عرض الآيات -->
+        <div id="ayah-container" class="bg-white p-6 rounded shadow">
+            <p class="text-center text-gray-600">يرجى اختيار سورة لعرض الآيات</p>
         </div>
 
-        <!-- Section: تفاصيل الآية -->
-        <div class="section" id="ayah-section">
-            <h2>تفاصيل الآية</h2>
-            <label for="ayah-number">رقم الآية:</label>
-            <input type="number" id="ayah-number" min="1">
-            <button onclick="getAyahDetails()">عرض تفاصيل الآية</button>
-            <div class="result" id="ayah-details"></div>
+        <!-- عرض التفسير -->
+        <div id="tafseer-container" class="bg-gray-50 p-4 mt-4 rounded shadow hidden">
+            <h2 class="text-2xl font-bold mb-4">التفسير الميسر</h2>
+            <p id="tafseer-text" class="text-lg text-gray-800"></p>
         </div>
-
-        <!-- Section: التفاسير المتاحة -->
-        <div class="section" id="tafseer-section">
-            <h2>التفاسير المتاحة</h2>
-            <select id="tafseer-select"></select>
-            <button onclick="getTafseer()">عرض التفسير</button>
-            <div class="result" id="tafseer-details"></div>
-        </div>
-    </main>
+    </div>
 
     <script>
-        const API_BASE = 'https://api.quran-tafseer.com';
+        const apiBase = "http://api.quran-tafseer.com";
 
-        // Fetch and display أسماء السور
-        async function fetchSuras() {
-            const response = await fetch(`${API_BASE}/quran`);
-            const suras = await response.json();
-            const suraSelect = document.getElementById('sura-select');
+        // تحميل قائمة السور
+        async function loadSurahs() {
+            const response = await fetch(`${apiBase}/quran`);
+            const surahs = await response.json();
 
-            suras.forEach(sura => {
-                const option = document.createElement('option');
-                option.value = sura.index;
-                option.textContent = `${sura.index}. ${sura.name}`;
-                suraSelect.appendChild(option);
+            const surahSelect = document.getElementById("surah-select");
+            surahs.forEach(surah => {
+                const option = document.createElement("option");
+                option.value = surah.index;
+                option.textContent = surah.name;
+                surahSelect.appendChild(option);
             });
         }
 
-        // Fetch and display تفاصيل الآية
-        async function getAyahDetails() {
-            const suraNumber = document.getElementById('sura-select').value;
-            const ayahNumber = document.getElementById('ayah-number').value;
+        // تحميل الآيات
+        async function loadAyahs(surahNumber) {
+            const ayahContainer = document.getElementById("ayah-container");
+            ayahContainer.innerHTML = "<p class='text-center text-gray-600'>جاري تحميل الآيات...</p>";
 
-            if (!suraNumber || !ayahNumber) {
-                alert('يرجى اختيار السورة وإدخال رقم الآية.');
-                return;
+            const response = await fetch(`${apiBase}/quran/${surahNumber}/1`);
+            const ayahs = [];
+            let ayahNumber = 1;
+
+            while (response.ok) {
+                const ayah = await response.json();
+                ayahs.push(ayah);
+                ayahNumber++;
+
+                const nextResponse = await fetch(`${apiBase}/quran/${surahNumber}/${ayahNumber}`);
+                if (!nextResponse.ok) break;
             }
 
-            const response = await fetch(`${API_BASE}/quran/${suraNumber}/${ayahNumber}`);
-            const ayah = await response.json();
-
-            const ayahDetails = document.getElementById('ayah-details');
-            ayahDetails.innerHTML = `<p><strong>السورة:</strong> ${ayah.sura_name}</p>
-                                      <p><strong>الآية:</strong> ${ayah.ayah_number}</p>
-                                      <p><strong>النص:</strong> ${ayah.text}</p>`;
-        }
-
-        // Fetch and display التفاسير المتاحة
-        async function fetchTafseers() {
-            const response = await fetch(`${API_BASE}/tafseer`);
-            const tafseers = await response.json();
-            const tafseerSelect = document.getElementById('tafseer-select');
-
-            tafseers.forEach(tafseer => {
-                const option = document.createElement('option');
-                option.value = tafseer.id;
-                option.textContent = tafseer.name;
-                tafseerSelect.appendChild(option);
+            ayahContainer.innerHTML = "";
+            ayahs.forEach(ayah => {
+                const ayahElement = document.createElement("p");
+                ayahElement.className = "ayah text-xl mb-4 p-2 bg-gray-100 hover:bg-gray-200 rounded";
+                ayahElement.textContent = ayah.text;
+                ayahElement.setAttribute("data-surah", ayah.sura_index);
+                ayahElement.setAttribute("data-ayah", ayah.ayah_number);
+                ayahElement.onclick = () => loadTafseer(ayah.sura_index, ayah.ayah_number);
+                ayahContainer.appendChild(ayahElement);
             });
         }
 
-        // Fetch and display تفسير الآية
-        async function getTafseer() {
-            const tafseerId = document.getElementById('tafseer-select').value;
-            const suraNumber = document.getElementById('sura-select').value;
-            const ayahNumber = document.getElementById('ayah-number').value;
-
-            if (!tafseerId || !suraNumber || !ayahNumber) {
-                alert('يرجى اختيار التفسير والسورة وإدخال رقم الآية.');
-                return;
-            }
-
-            const response = await fetch(`${API_BASE}/tafseer/${tafseerId}/${suraNumber}/${ayahNumber}`);
+        // تحميل التفسير
+        async function loadTafseer(surahNumber, ayahNumber) {
+            const response = await fetch(`${apiBase}/tafseer/1/${surahNumber}/${ayahNumber}`);
             const tafseer = await response.json();
 
-            const tafseerDetails = document.getElementById('tafseer-details');
-            tafseerDetails.innerHTML = `<p><strong>التفسير:</strong> ${tafseer.tafseer_name}</p>
-                                          <p>${tafseer.text}</p>`;
+            const tafseerContainer = document.getElementById("tafseer-container");
+            const tafseerText = document.getElementById("tafseer-text");
+
+            tafseerText.textContent = tafseer.text;
+            tafseerContainer.classList.remove("hidden");
         }
 
-        // Initialize the page
-        fetchSuras();
-        fetchTafseers();
+        document.getElementById("surah-select").addEventListener("change", function () {
+            const surahNumber = this.value;
+            if (surahNumber) {
+                loadAyahs(surahNumber);
+            }
+        });
+
+        // بدء التحميل
+        loadSurahs();
     </script>
 </body>
 </html>
