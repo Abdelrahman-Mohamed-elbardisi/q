@@ -3,106 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>القرآن الكريم</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="description" content="موقع لقراءة القرآن الكريم مع التفسير الميسر">
+    <meta name="keywords" content="القرآن الكريم, تفسير القرآن, التفسير الميسر">
+    <title>القرآن الكريم | التفسير الميسر</title>
     <style>
-        body {
-            font-family: 'Amiri', serif;
+        :root {
+            --primary-color: #234;
+            --text-color: #333;
+            --bg-color: #fff;
         }
-        .ayah {
+
+        [data-theme="dark"] {
+            --primary-color: #4a5;
+            --text-color: #eee;
+            --bg-color: #222;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Traditional Arabic', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
             cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .sura-selector {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--primary-color);
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .quran-text {
+            text-align: center;
+            padding: 2rem;
+            font-size: 24px;
+            line-height: 2;
+            background: var(--bg-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .verse {
+            cursor: pointer;
+            padding: 0.5rem;
+            margin: 0.25rem;
+            display: inline-block;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .verse:hover {
+            background-color: rgba(128,128,128,0.1);
+        }
+
+        .tafseer-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+        }
+
+        .tafseer-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-color);
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 80%;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+
+        @media (max-width: 768px) {
+            .quran-text {
+                font-size: 20px;
+                padding: 1rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
-    <div class="container mx-auto py-10">
-        <h1 class="text-4xl font-bold text-center mb-8">القرآن الكريم</h1>
+<body>
+    <header>
+        <h1>القرآن الكريم</h1>
+        <p>مع التفسير الميسر</p>
+    </header>
 
-        <!-- قائمة السور -->
-        <select id="surah-select" class="block w-full p-2 border border-gray-300 rounded mb-6">
-            <option value="">اختر السورة</option>
-        </select>
-
-        <!-- عرض الآيات -->
-        <div id="ayah-container" class="bg-white p-6 rounded shadow">
-            <p class="text-center text-gray-600">يرجى اختيار سورة لعرض الآيات</p>
+    <div class="container">
+        <div class="controls">
+            <select class="sura-selector" id="suraSelect">
+                <option value="">اختر السورة</option>
+            </select>
+            <button id="increaseFont">تكبير الخط</button>
+            <button id="decreaseFont">تصغير الخط</button>
+            <button id="toggleTheme">الوضع الليلي</button>
         </div>
 
-        <!-- عرض التفسير -->
-        <div id="tafseer-container" class="bg-gray-50 p-4 mt-4 rounded shadow hidden">
-            <h2 class="text-2xl font-bold mb-4">التفسير الميسر</h2>
-            <p id="tafseer-text" class="text-lg text-gray-800"></p>
+        <div class="quran-text" id="quranText">
+            الرجاء اختيار السورة
+        </div>
+    </div>
+
+    <div class="tafseer-modal" id="tafseerModal">
+        <div class="tafseer-content">
+            <button class="close-modal" id="closeModal">×</button>
+            <div id="tafseerText"></div>
         </div>
     </div>
 
     <script>
-        const apiBase = "http://api.quran-tafseer.com";
-
-        // تحميل قائمة السور
-        async function loadSurahs() {
-            const response = await fetch(`${apiBase}/quran`);
-            const surahs = await response.json();
-
-            const surahSelect = document.getElementById("surah-select");
-            surahs.forEach(surah => {
-                const option = document.createElement("option");
-                option.value = surah.index;
-                option.textContent = surah.name;
-                surahSelect.appendChild(option);
-            });
-        }
-
-        // تحميل الآيات
-        async function loadAyahs(surahNumber) {
-            const ayahContainer = document.getElementById("ayah-container");
-            ayahContainer.innerHTML = "<p class='text-center text-gray-600'>جاري تحميل الآيات...</p>";
-
-            const response = await fetch(`${apiBase}/quran/${surahNumber}/1`);
-            const ayahs = [];
-            let ayahNumber = 1;
-
-            while (response.ok) {
-                const ayah = await response.json();
-                ayahs.push(ayah);
-                ayahNumber++;
-
-                const nextResponse = await fetch(`${apiBase}/quran/${surahNumber}/${ayahNumber}`);
-                if (!nextResponse.ok) break;
+        document.addEventListener('DOMContentLoaded', async function() {
+            // تهيئة المتغيرات
+            let currentFontSize = 24;
+            const quranText = document.getElementById('quranText');
+            const suraSelect = document.getElementById('suraSelect');
+            const modal = document.getElementById('tafseerModal');
+            const tafseerText = document.getElementById('tafseerText');
+            
+            // جلب قائمة السور
+            async function fetchSuras() {
+                try {
+                    const response = await fetch('http://api.quran-tafseer.com/quran/');
+                    const suras = await response.json();
+                    suras.forEach(sura => {
+                        const option = document.createElement('option');
+                        option.value = sura.index;
+                        option.textContent = `${sura.index}. ${sura.name}`;
+                        suraSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error fetching suras:', error);
+                    quranText.textContent = 'حدث خطأ في تحميل السور';
+                }
             }
 
-            ayahContainer.innerHTML = "";
-            ayahs.forEach(ayah => {
-                const ayahElement = document.createElement("p");
-                ayahElement.className = "ayah text-xl mb-4 p-2 bg-gray-100 hover:bg-gray-200 rounded";
-                ayahElement.textContent = ayah.text;
-                ayahElement.setAttribute("data-surah", ayah.sura_index);
-                ayahElement.setAttribute("data-ayah", ayah.ayah_number);
-                ayahElement.onclick = () => loadTafseer(ayah.sura_index, ayah.ayah_number);
-                ayahContainer.appendChild(ayahElement);
-            });
-        }
-
-        // تحميل التفسير
-        async function loadTafseer(surahNumber, ayahNumber) {
-            const response = await fetch(`${apiBase}/tafseer/1/${surahNumber}/${ayahNumber}`);
-            const tafseer = await response.json();
-
-            const tafseerContainer = document.getElementById("tafseer-container");
-            const tafseerText = document.getElementById("tafseer-text");
-
-            tafseerText.textContent = tafseer.text;
-            tafseerContainer.classList.remove("hidden");
-        }
-
-        document.getElementById("surah-select").addEventListener("change", function () {
-            const surahNumber = this.value;
-            if (surahNumber) {
-                loadAyahs(surahNumber);
+            // جلب آيات السورة
+            async function fetchSuraVerses(suraNumber) {
+                try {
+                    quranText.innerHTML = 'جاري التحميل...';
+                    const verses = [];
+                    // نفترض أن كل سورة لديها 20 آية كحد أقصى للتبسيط
+                    for(let i = 1; i <= 20; i++) {
+                        try {
+                            const response = await fetch(`http://api.quran-tafseer.com/quran/${suraNumber}/${i}`);
+                            const verse = await response.json();
+                            verses.push(verse);
+                        } catch {
+                            break;
+                        }
+                    }
+                    displayVerses(verses);
+                } catch (error) {
+                    console.error('Error fetching verses:', error);
+                    quranText.textContent = 'حدث خطأ في تحميل الآيات';
+                }
             }
+
+            // عرض الآيات
+            function displayVerses(verses) {
+                quranText.innerHTML = verses.map(verse => 
+                    `<span class="verse" data-verse="${verse.ayah_number}">${verse.text} ﴿${verse.ayah_number}﴾</span>`
+                ).join(' ');
+            }
+
+            // جلب التفسير
+            async function fetchTafseer(suraNumber, verseNumber) {
+                try {
+                    const response = await fetch(`http://api.quran-tafseer.com/tafseer/1/${suraNumber}/${verseNumber}`);
+                    const tafseer = await response.json();
+                    return tafseer.text;
+                } catch (error) {
+                    console.error('Error fetching tafseer:', error);
+                    return 'حدث خطأ في تحميل التفسير';
+                }
+            }
+
+            // معالجة الأحداث
+            suraSelect.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    fetchSuraVerses(e.target.value);
+                }
+            });
+
+            quranText.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('verse')) {
+                    const suraNumber = suraSelect.value;
+                    const verseNumber = e.target.dataset.verse;
+                    tafseerText.textContent = 'جاري تحميل التفسير...';
+                    modal.style.display = 'block';
+                    const tafseerContent = await fetchTafseer(suraNumber, verseNumber);
+                    tafseerText.textContent = tafseerContent;
+                }
+            });
+
+            document.getElementById('closeModal').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            document.getElementById('increaseFont').addEventListener('click', () => {
+                currentFontSize += 2;
+                quranText.style.fontSize = `${currentFontSize}px`;
+            });
+
+            document.getElementById('decreaseFont').addEventListener('click', () => {
+                if (currentFontSize > 16) {
+                    currentFontSize -= 2;
+                    quranText.style.fontSize = `${currentFontSize}px`;
+                }
+            });
+
+            document.getElementById('toggleTheme').addEventListener('click', () => {
+                document.body.dataset.theme = document.body.dataset.theme === 'dark' ? '' : 'dark';
+            });
+
+            // تحميل السور عند بدء التطبيق
+            fetchSuras();
         });
-
-        // بدء التحميل
-        loadSurahs();
     </script>
 </body>
 </html>
