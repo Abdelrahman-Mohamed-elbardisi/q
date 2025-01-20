@@ -186,13 +186,15 @@
         const modal = document.getElementById('tafseerModal');
         const tafseerText = document.getElementById('tafseerText');
         
-        // تعريف base URL مع HTTPS
-        const BASE_URL = 'https://api.quran-tafseer.com';
+        // تعريف base URL مع CORS proxy
+        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+        const BASE_URL = 'http://api.quran-tafseer.com';
         
         // دالة مساعدة للـ fetch مع معالجة الأخطاء
         async function safeFetch(url, options = {}) {
             try {
-                const response = await fetch(url, {
+                const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl, {
                     ...options,
                     headers: {
                         'Accept': 'application/json',
@@ -207,7 +209,6 @@
                 return await response.json();
             } catch (error) {
                 console.error(`Fetch error for ${url}:`, error);
-                // إعادة رمي الخطأ للتعامل معه في المستوى الأعلى
                 throw error;
             }
         }
@@ -233,13 +234,9 @@
                         عذراً، حدث خطأ في تحميل السور
                         <br>
                         <small>يرجى التأكد من اتصال الإنترنت والمحاولة مرة أخرى</small>
+                        <br>
+                        <button onclick="location.reload()" style="margin-top: 10px;">إعادة المحاولة</button>
                     </div>`;
-                
-                // إضافة زر إعادة المحاولة
-                const retryButton = document.createElement('button');
-                retryButton.textContent = 'إعادة المحاولة';
-                retryButton.onclick = fetchSuras;
-                quranText.appendChild(retryButton);
             }
         }
 
@@ -248,20 +245,24 @@
             try {
                 quranText.innerHTML = '<div style="text-align: center;">جاري التحميل...</div>';
                 const verses = [];
-                // نستخدم Promise.all لتحسين الأداء
-                const versesPromises = Array.from({ length: 20 }, (_, i) =>
-                    safeFetch(`${BASE_URL}/quran/${suraNumber}/${i + 1}`)
-                        .catch(() => null) // نتجاهل الأخطاء للآيات غير الموجودة
-                );
-                
-                const results = await Promise.all(versesPromises);
-                const validVerses = results.filter(verse => verse !== null);
-                
-                if (validVerses.length === 0) {
+                let ayahNumber = 1;
+                let continueLoop = true;
+
+                while (continueLoop && ayahNumber <= 286) { // أقصى عدد آيات في أطول سورة
+                    try {
+                        const verse = await safeFetch(`${BASE_URL}/quran/${suraNumber}/${ayahNumber}`);
+                        verses.push(verse);
+                        ayahNumber++;
+                    } catch (error) {
+                        continueLoop = false;
+                    }
+                }
+
+                if (verses.length === 0) {
                     throw new Error('No verses found');
                 }
-                
-                displayVerses(validVerses);
+
+                displayVerses(verses);
             } catch (error) {
                 console.error('Error fetching verses:', error);
                 quranText.innerHTML = `
@@ -269,8 +270,20 @@
                         عذراً، حدث خطأ في تحميل الآيات
                         <br>
                         <small>يرجى المحاولة مرة أخرى</small>
+                        <br>
+                        <button onclick="fetchSuraVerses(${suraNumber})" style="margin-top: 10px;">إعادة المحاولة</button>
                     </div>`;
             }
+        }
+
+        // عرض الآيات
+        function displayVerses(verses) {
+            quranText.innerHTML = verses.map(verse => 
+                `<span class="verse" data-verse="${verse.ayah_number}">
+                    ${verse.text} 
+                    <span class="verse-number">﴿${verse.ayah_number}﴾</span>
+                </span>`
+            ).join(' ');
         }
 
         // جلب التفسير
@@ -284,13 +297,51 @@
             }
         }
 
-        // [Previous event listeners and display functions remain the same]
+        // معالجة الأحداث
+        suraSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                fetchSuraVerses(e.target.value);
+            }
+        });
 
-        // إضافة معالج للأخطاء العامة
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Error: ', msg, 'URL: ', url, 'Line: ', lineNo, 'Column: ', columnNo, 'Error object: ', error);
-            return false;
-        };
+        quranText.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('verse') || e.target.parentElement.classList.contains('verse')) {
+                const verseElement = e.target.classList.contains('verse') ? e.target : e.target.parentElement;
+                const suraNumber = suraSelect.value;
+                const verseNumber = verseElement.dataset.verse;
+                tafseerText.textContent = 'جاري تحميل التفسير...';
+                modal.style.display = 'block';
+                const tafseerContent = await fetchTafseer(suraNumber, verseNumber);
+                tafseerText.textContent = tafseerContent;
+            }
+        });
+
+        document.getElementById('closeModal').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        document.getElementById('increaseFont').addEventListener('click', () => {
+            currentFontSize += 2;
+            quranText.style.fontSize = `${currentFontSize}px`;
+        });
+
+        document.getElementById('decreaseFont').addEventListener('click', () => {
+            if (currentFontSize > 16) {
+                currentFontSize -= 2;
+                quranText.style.fontSize = `${currentFontSize}px`;
+            }
+        });
+
+        document.getElementById('toggleTheme').addEventListener('click', () => {
+            document.body.dataset.theme = document.body.dataset.theme === 'dark' ? '' : 'dark';
+        });
+
+        // إضافة معالج للنقر خارج Modal
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
 
         // تحميل السور عند بدء التطبيق
         fetchSuras();
